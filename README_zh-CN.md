@@ -28,6 +28,7 @@ EasyPhoto是一款工具，用于生成AI肖像画，该代码可用于训练与
 请阅读我们的开发者公约，共建美好社区 [covenant](./COVENANT.md) | [简体中文](./COVENANT_zh-CN.md)
 
 新特性：
+- 我们同样支持[Stable Diffusion Webui插件](https://github.com/aigc-apps/sd-webui-EasyPhoto/). [🔥 2023.09.19]
 - 创建代码！现在支持 Windows 和 Linux，支持对背景进行微调，支持不同预测基础模型，支持多人生成。[🔥 2023.09.19]
 
 这些是我们的生成结果:

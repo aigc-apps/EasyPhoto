@@ -28,6 +28,7 @@ EasyPhoto is a tool for generating AI portraits that can be used to train digita
 Please read our Contributor Covenant [covenant](./COVENANT.md) | [简体中文](./COVENANT_zh-CN.md).   
 
 What's New: 
+- We also support the [Stable Diffusion Webui Plug-In](https://github.com/aigc-apps/sd-webui-EasyPhoto/). [🔥 2023.09.19]
 - Create Code! Support for Windows and Linux Now. Support multi-people generation. Support different base models for training and inference. Support fine-tuning the background and calculating similarity. [🔥 2023.09.19]
 
 These are our generated results:
@@ -121,7 +122,6 @@ If you want to set parameters, the parsing of each parameter is as follows:
 - Step 4: Click the Generate button to generate the results.
 
 ![single_people](images/single_people.jpg)
-![Alt text](image.png)
 
 #### b. multi people
 - Step 1: Go to the settings page of EasyPhoto and set num_of_faceid is greater than 1.
