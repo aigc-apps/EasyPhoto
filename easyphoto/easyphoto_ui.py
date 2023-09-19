@@ -289,10 +289,10 @@ def on_ui_tabs():
                                         ids.append(_id)
                                 ids = sorted(ids)
 
-                            num_of_faceid = gr.Dropdown(value=1, elem_id='dropdown', choices=[1, 2, 3, 4, 5], label=f"Num of Faceid")
+                            num_of_faceid = gr.Dropdown(value=str(1), elem_id='dropdown', choices=[1, 2, 3, 4, 5], label=f"Num of Faceid")
                                 
                             uuids           = []
-                            visibles        = [True, True, True, True, True]
+                            visibles        = [True, False, False, False, False]
                             for i in range(int(5)):
                                 uuid = gr.Dropdown(value="none", elem_id='dropdown', choices=["none"] + ids, label=f"User_{i} id", visible=visibles[i])
                                 uuids.append(uuid)
