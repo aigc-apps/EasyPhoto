@@ -9,7 +9,7 @@ English | [简体中文](./README_zh-CN.md)
 - [Introduction](#introduction)
 - [TODO List](#todo-list)
 - [Quick Start](#quick-start)
-    - [1. Local install: Check/Downloading/Installation](#2-local-install-environment-checkdownloadinginstallation)
+    - [1. Local install: Check/Downloading/Installation](#1-local-install-environment-checkdownloadinginstallation)
 - [How to use](#how-to-use)
     - [1. Model Training](#1-model-training)
     - [2. Inference](#2-inference)
@@ -25,7 +25,7 @@ English | [简体中文](./README_zh-CN.md)
 # Introduction
 EasyPhoto is a tool for generating AI portraits that can be used to train digital doppelgangers relevant to you. Training is recommended to be done with 5 to 20 portrait images, preferably half-body photos and do not wear glasses (It doesn't matter if the characters in a few pictures wear glasses). After the training is done, we can generate it in the Inference section. We support using preset template images or uploading your own images for Inference.    
 
-We now support quick pull-ups from different platforms, refer to [Quick Start](#quick-start).
+Please read our Contributor Covenant [covenant](./COVENANT.md) | [简体中文](./COVENANT_zh-CN.md).   
 
 What's New: 
 - Create Code! Support for Windows and Linux Now. Support multi-people generation. Support different base models for training and inference. Support fine-tuning the background and calculating similarity. [🔥 2023.09.19]
@@ -121,6 +121,7 @@ If you want to set parameters, the parsing of each parameter is as follows:
 - Step 4: Click the Generate button to generate the results.
 
 ![single_people](images/single_people.jpg)
+![Alt text](image.png)
 
 #### b. multi people
 - Step 1: Go to the settings page of EasyPhoto and set num_of_faceid is greater than 1.
@@ -130,8 +131,8 @@ If you want to set parameters, the parsing of each parameter is as follows:
 - Step 5: Select the user IDs of two people.
 - Step 6: Click the Generate button. Perform image generation.
 
-![single_people](images/multi_people_1.jpg)
-![single_people](images/multi_people_2.jpg)
+![multi_people](images/multi_people.jpg)
+
 # Algorithm Detailed
 
 ### 1. Architectural Overview

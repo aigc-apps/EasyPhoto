@@ -9,7 +9,7 @@
 - [简介](#简介)
 - [TODO List](#todo-list)
 - [快速启动](#快速启动)
-    - [1. 本地安装: 环境检查/下载/安装](#2-本地安装-环境检查下载安装)
+    - [1. 本地安装: 环境检查/下载/安装](#1-本地安装-环境检查下载安装)
 - [如何使用](#如何使用)
     - [1. 模型训练](#1-模型训练)
     - [2. 人物生成](#2-人物生成)
@@ -128,8 +128,7 @@ EasyPhoto训练界面如下：
 - 步骤5：选择两个人的用户ID。
 - 步骤6：单击“生成”按钮。执行图像生成。
 
-![single_people](images/multi_people_1.jpg)
-![single_people](images/multi_people_2.jpg)
+![multi_people](images/multi_people.jpg)
 
 # 算法详细信息
 
