@@ -1,4 +1,10 @@
 # Byte-compiled / optimized / DLL files
+model_data/*
+outputs/*
+
+!model_data/Others/stable-diffusion-v1-5/
+!model_data/infer_templates
+
 __pycache__/
 *.py[cod]
 *$py.class
