@@ -62,6 +62,7 @@ def check_files_exists_and_download():
         "https://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/2.jpg",
         "https://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/3.jpg",
         "https://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/4.jpg",
+
     ]
     filenames = [
         os.path.join(models_path, f"Stable-diffusion/Chilloutmix-Ni-pruned-fp16-fix.safetensors"),

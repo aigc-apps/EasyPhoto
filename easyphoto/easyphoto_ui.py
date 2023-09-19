@@ -101,6 +101,10 @@ def on_ui_tabs():
                                     return gr.update(choices=list(set(["Chilloutmix-Ni-pruned-fp16-fix.safetensors"] + checkpoints)))
                                 
                                 checkpoints = []
+
+                                if not os.path.exists(os.path.join(models_path, "Stable-diffusion")):
+                                    os.makedirs(os.path.join(models_path, "Stable-diffusion"), exist_ok=True)
+
                                 for _checkpoint in os.listdir(os.path.join(models_path, "Stable-diffusion")):
                                     if _checkpoint.endswith(("pth", "safetensors", "ckpt")):
                                         checkpoints.append(_checkpoint)
