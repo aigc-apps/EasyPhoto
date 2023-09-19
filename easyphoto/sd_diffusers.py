@@ -10,6 +10,8 @@ from safetensors.torch import load_file
 from transformers import CLIPTextModel, CLIPTokenizer
 from easyphoto.train_kohya.utils.model_utils import \
     load_models_from_stable_diffusion_checkpoint
+import logging
+
 
 tokenizer       = None
 scheduler       = None
@@ -197,7 +199,12 @@ def i2i_inpaint_call(
     # Bind LoRANetwork to pipeline.
     merge_lora(pipeline, sd_lora_checkpoint, 1, from_safetensor=True, device="cuda", dtype=weight_dtype)
 
-    pipeline.enable_xformers_memory_efficient_attention()
+    try:
+        import xformers
+        pipeline.enable_xformers_memory_efficient_attention()
+    except:
+        logging.warning('No module named xformers. Infer without using xformers. You can run pip install xformers to install it.')
+        
     generator           = torch.Generator("cuda").manual_seed(int(seed)) 
     pipeline.safety_checker = None
 
