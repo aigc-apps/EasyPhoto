@@ -1,4 +1,5 @@
 import os
+import copy
 import re
 from collections import defaultdict
 
@@ -10,6 +11,8 @@ from safetensors.torch import load_file
 from transformers import CLIPTextModel, CLIPTokenizer
 from easyphoto.train_kohya.utils.model_utils import \
     load_models_from_stable_diffusion_checkpoint
+from easyphoto.easyphoto_config import \
+    preload_lora
 import logging
 
 
@@ -19,8 +22,8 @@ text_encoder    = None
 vae             = None
 unet            = None
 pipeline        = None
-sd_model_checkpoint_before = ""
-weight_dtype = torch.float16
+sd_model_checkpoint_before  = ""
+weight_dtype                = torch.float16
 
 def merge_lora(pipeline, lora_path, multiplier, from_safetensor=False, device='cpu', dtype=torch.float32):
     LORA_PREFIX_UNET = "lora_unet"
@@ -174,7 +177,7 @@ def i2i_inpaint_call(
         sd_model_checkpoint="",
         sd_base15_checkpoint="",
 ):  
-    global tokenizer, scheduler, text_encoder, vae, unet, sd_model_checkpoint_before, pipeline
+    global tokenizer, scheduler, text_encoder, vae, unet, sd_model_checkpoint_before, pipeline, preload_lora_local
     width   = int(width // 8 * 8)
     height  = int(height // 8 * 8)
     
@@ -198,9 +201,12 @@ def i2i_inpaint_call(
         safety_checker=None,
         feature_extractor=None,
     ).to("cuda")
+    if preload_lora is not None:
+        for _preload_lora in preload_lora:
+            merge_lora(pipeline, _preload_lora, 0.60, from_safetensor=True, device="cuda", dtype=weight_dtype)
     if sd_lora_checkpoint != "":
         # Bind LoRANetwork to pipeline.
-        merge_lora(pipeline, sd_lora_checkpoint, 1, from_safetensor=True, device="cuda", dtype=weight_dtype)
+        merge_lora(pipeline, sd_lora_checkpoint, 0.90, from_safetensor=True, device="cuda", dtype=weight_dtype)
 
     try:
         import xformers
@@ -214,9 +220,12 @@ def i2i_inpaint_call(
     image = pipeline(
         prompt, image=images, mask_image=mask_image, control_image=controlnet_image, strength=denoising_strength, negative_prompt=negative_prompt, 
         guidance_scale=cfg_scale, num_inference_steps=steps, generator=generator, height=height, width=width, \
-        controlnet_conditioning_scale=controlnet_conditioning_scale
+        controlnet_conditioning_scale=controlnet_conditioning_scale, guess_mode=True
     ).images[0]
 
     if sd_lora_checkpoint != "":
-        unmerge_lora(pipeline, sd_lora_checkpoint, 1, from_safetensor=True, device="cuda", dtype=weight_dtype)
+        unmerge_lora(pipeline, sd_lora_checkpoint, 0.90, from_safetensor=True, device="cuda", dtype=weight_dtype)
+    if preload_lora is not None:
+        for _preload_lora in preload_lora:
+            unmerge_lora(pipeline, _preload_lora, 0.60, from_safetensor=True, device="cuda", dtype=weight_dtype)
     return image

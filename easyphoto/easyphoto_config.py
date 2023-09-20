@@ -20,3 +20,4 @@ DEFAULT_POSITIVE = 'beautiful, cool, finely detail, light smile, extremely detai
 DEFAULT_NEGATIVE = 'glasses, naked, nude, nsfw, breasts, penis, cum,, ugly, huge eyes, text, logo, worst face, strange mouth, nsfw, NSFW, low quality, worst quality, worst quality, low quality, normal quality, lowres, watermark, lowres, monochrome, naked, nude, nsfw, bad anatomy, bad hands, normal quality, grayscale, mural,'
 
 cache_log_file_path     = os.path.join(models_path, "train_kohya_log.txt")
+preload_lora            = [os.path.join(models_path, "Lora/FilmVelvia3.safetensors")]
