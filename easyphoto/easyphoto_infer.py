@@ -338,7 +338,7 @@ def easyphoto_infer_forward(
             loop_template_image = copy.deepcopy(template_image)
             
             # mask other people face use 255 in this term, to transfer multi user to single user situation
-            if min(len(template_face_safe_boxes), len(user_ids)) > 1:
+            if min(len(template_face_safe_boxes), len(user_ids) - len(passed_userid_list)) > 1:
                 loop_template_image = np.array(loop_template_image)
                 for sub_index in range(len(template_face_safe_boxes)):
                     if index != sub_index:
@@ -495,7 +495,7 @@ def easyphoto_infer_forward(
                 face_id_outputs.append((roop_images[index], "{}, {:.2f}".format(user_ids[index][:10], loop_output_image_faceid)))
                 loop_output_image = Image.fromarray(loop_output_image)
             
-            if min(len(template_face_safe_boxes), len(user_ids)) > 1:
+            if min(len(template_face_safe_boxes), len(user_ids) - len(passed_userid_list)) > 1:
                 logging.info("Start paste crop image to origin template in multi people.")
                 template_face_safe_box = template_face_safe_boxes[index]
                 output_image[template_face_safe_box[1]:template_face_safe_box[3], template_face_safe_box[0]:template_face_safe_box[2]] = np.array(loop_output_image, np.float32)[template_face_safe_box[1]:template_face_safe_box[3], template_face_safe_box[0]:template_face_safe_box[2]]
@@ -503,7 +503,7 @@ def easyphoto_infer_forward(
                 output_image = loop_output_image 
 
         try:
-            if min(len(template_face_safe_boxes), len(user_ids)) > 1 or background_restore:
+            if min(len(template_face_safe_boxes), len(user_ids) - len(passed_userid_list)) > 1 or background_restore:
                 logging.info("Start Thirt diffusion for background.")
                 output_image    = Image.fromarray(np.uint8(output_image))
                 short_side      = min(output_image.width, output_image.height)
