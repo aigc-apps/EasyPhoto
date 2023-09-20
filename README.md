@@ -87,10 +87,10 @@ python app.py
 
 ```
 # pull image
-docker pull registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch210-cu117
+docker pull registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
 
 # enter image
-docker run -it -p 7860:7860 --network host --gpus all registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch210-cu117
+docker run -it --network host --gpus all registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
 
 # launch
 python app.py
