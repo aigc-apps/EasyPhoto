@@ -233,7 +233,6 @@ def easyphoto_infer_forward(
     face_id_retinaface_masks        = []
     sd_lora_checkpoints             = []
     input_prompt_without_lora       = f"{validation_prompt}" + additional_prompt
-    best_lora_weights= str(0.9)
     multi_user_facecrop_ratio       = 1.5
     multi_user_safecrop_ratio       = 1.0
     # Second diffusion hr scale
@@ -254,7 +253,7 @@ def easyphoto_infer_forward(
             face_id_retinaface_masks.append([])
         else:
             # get prompt
-            input_prompt            = f"{validation_prompt}, <lora:{user_id}:{best_lora_weights}>" + "<lora:FilmVelvia3:0.65>" + additional_prompt
+            input_prompt            = f"{validation_prompt}" + additional_prompt
             
             # get best image after training
             best_outputs_paths = glob.glob(os.path.join(user_id_outpath_samples, user_id, "user_weights", "best_outputs", "*.jpg"))
@@ -345,7 +344,6 @@ def easyphoto_infer_forward(
                         retinaface_box = template_face_safe_boxes[sub_index]
                         loop_template_image[retinaface_box[1]:retinaface_box[3], retinaface_box[0]:retinaface_box[2]] = 255
                 loop_template_image = Image.fromarray(np.uint8(loop_template_image))
-
             # Crop the template image to retain only the portion of the portrait
             if crop_face_preprocess:
                 loop_template_crop_safe_boxes, _, _ = call_face_crop(retinaface_detection, loop_template_image, 3, "crop")

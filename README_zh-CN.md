@@ -10,6 +10,7 @@
 - [TODO List](#todo-list)
 - [快速启动](#快速启动)
     - [1. 本地安装: 环境检查/下载/安装](#1-本地安装-环境检查下载安装)
+    - [2. 从docker开始](#2-从docker开始)
 - [如何使用](#如何使用)
     - [1. 模型训练](#1-模型训练)
     - [2. 人物生成](#2-人物生成)
@@ -80,6 +81,19 @@ cd EasyPhoto
 pip install -r requirements.txt
 
 # 启动工具
+python app.py
+```
+
+### 2. 从docker开始
+
+```
+# pull image
+docker pull registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
+
+# enter image
+docker run -it --network host --gpus all registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
+
+# launch
 python app.py
 ```
 

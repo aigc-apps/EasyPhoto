@@ -16,8 +16,8 @@ user_id_outpath_samples         = os.path.join(data_dir, 'outputs/easyphoto-user
 
 # prompts 
 validation_prompt   = "easyphoto_face, easyphoto, 1person"
-DEFAULT_POSITIVE = 'beautiful, cool, finely detail, light smile, extremely detailed CG unity 8k wallpaper, huge filesize, best quality, realistic, photo-realistic, ultra high res, raw phot, put on makeup'
-DEFAULT_NEGATIVE = 'glasses, naked, nude, nsfw, breasts, penis, cum,, ugly, huge eyes, text, logo, worst face, strange mouth, nsfw, NSFW, low quality, worst quality, worst quality, low quality, normal quality, lowres, watermark, lowres, monochrome, naked, nude, nsfw, bad anatomy, bad hands, normal quality, grayscale, mural,'
+DEFAULT_POSITIVE = 'best quality, realistic, photo-realistic, detailed skin, beautiful, cool, finely detail, light smile, extremely detailed CG unity 8k wallpaper, huge filesize, best quality, realistic, photo-realistic, ultra high res, raw photo, put on makeup'
+DEFAULT_NEGATIVE = 'bags under the eyes:1.5, Bags under eyes, glasses:1.5, naked, nude, nsfw, breasts, penis, cum, worst quality, low quality, normal quality, over red lips, hair, teeth, lowres, watermark, badhand, normal quality, lowres, bad anatomy, bad hands, normal quality, mural,'
 
 cache_log_file_path     = os.path.join(models_path, "train_kohya_log.txt")
 preload_lora            = [os.path.join(models_path, "Lora/FilmVelvia3.safetensors")]
