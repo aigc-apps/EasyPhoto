@@ -175,7 +175,9 @@ def i2i_inpaint_call(
         sd_base15_checkpoint="",
 ):  
     global tokenizer, scheduler, text_encoder, vae, unet, sd_model_checkpoint_before, pipeline
-
+    width   = int(width // 8 * 8)
+    height  = int(height // 8 * 8)
+    
     if (sd_model_checkpoint_before != sd_model_checkpoint) or (unet is None) or (vae is None) or (text_encoder is None):
         sd_model_checkpoint_before = sd_model_checkpoint
         text_encoder, vae, unet = load_models_from_stable_diffusion_checkpoint(False, sd_model_checkpoint)
