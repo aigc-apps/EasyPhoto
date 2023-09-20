@@ -196,8 +196,9 @@ def i2i_inpaint_call(
         safety_checker=None,
         feature_extractor=None,
     ).to("cuda")
-    # Bind LoRANetwork to pipeline.
-    merge_lora(pipeline, sd_lora_checkpoint, 1, from_safetensor=True, device="cuda", dtype=weight_dtype)
+    if sd_lora_checkpoint != "":
+        # Bind LoRANetwork to pipeline.
+        merge_lora(pipeline, sd_lora_checkpoint, 1, from_safetensor=True, device="cuda", dtype=weight_dtype)
 
     try:
         import xformers
@@ -214,5 +215,6 @@ def i2i_inpaint_call(
         controlnet_conditioning_scale=controlnet_conditioning_scale
     ).images[0]
 
-    unmerge_lora(pipeline, sd_lora_checkpoint, 1, from_safetensor=True, device="cuda", dtype=weight_dtype)
+    if sd_lora_checkpoint != "":
+        unmerge_lora(pipeline, sd_lora_checkpoint, 1, from_safetensor=True, device="cuda", dtype=weight_dtype)
     return image
