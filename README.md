@@ -83,6 +83,19 @@ pip install -r requirements.txt
 python app.py
 ```
 
+### 2. Build from Docker
+
+```
+# pull image
+docker pull registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
+
+# enter image
+docker run -it --network host --gpus all registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
+
+# launch
+python app.py
+```
+
 # How to use
 ### 1. Model Training
 The EasyPhoto training interface is as follows:
