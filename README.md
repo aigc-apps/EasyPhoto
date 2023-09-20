@@ -86,7 +86,6 @@ python app.py
 ### 2. Build from Docker
 
 ```
-# Download and Installation
 # pull image
 docker pull registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch210-cu117
 
