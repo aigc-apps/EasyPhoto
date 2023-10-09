@@ -7,7 +7,6 @@ import torchvision.transforms as transforms
 from PIL import Image
 from skimage import transform
 
-
 def safe_get_box_mask_keypoints(image, retinaface_result, crop_ratio, face_seg, mask_type):
     '''
     Inputs:
@@ -136,14 +135,14 @@ def color_transfer(sc, dc):
         x_std = np.hstack(np.around(x_std, 2))
         return x_mean, x_std
 
-    sc = cv2.cvtColor(sc, cv2.COLOR_BGR2LAB)
+    sc = cv2.cvtColor(sc, cv2.COLOR_RGB2LAB)
     s_mean, s_std = get_mean_and_std(sc)
-    dc = cv2.cvtColor(dc, cv2.COLOR_BGR2LAB)
+    dc = cv2.cvtColor(dc, cv2.COLOR_RGB2LAB)
     t_mean, t_std = get_mean_and_std(dc)
     img_n = ((sc-s_mean)*(t_std/s_std))+t_mean
     np.putmask(img_n, img_n > 255, 255)
     np.putmask(img_n, img_n < 0, 0)
-    dst = cv2.cvtColor(cv2.convertScaleAbs(img_n), cv2.COLOR_LAB2BGR)
+    dst = cv2.cvtColor(cv2.convertScaleAbs(img_n), cv2.COLOR_LAB2RGB)
     return dst
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -489,19 +488,26 @@ class Face_Skin(object):
         self.model.load_state_dict(torch.load(model_path, map_location='cpu'))
         self.model.eval()
 
+        self.cuda  = torch.cuda.is_available()
+        if self.cuda:
+            self.model.cuda()
+
         # transform for input image
         self.trans = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
         ])
 
-    def __call__(self, image, retinaface_detection, needs_index=[12, 13]):
+    # index => label
+    # 1:'skin', 2:'nose', 3:'eye_g', 4:'left_eye', 5:'right_eye', 6:'left_brow', 7:'right_brow', 8:'left_ear', 
+    # 9:'right_ear', 10:'mouth', 11:'upper_lip', 12:'low_lip', 13:'hair'
+    def __call__(self, image, retinaface_detection, needs_index=[[12, 13]]):
         # needs_index 12, 13 means seg the lip
         with torch.no_grad():
             total_mask = np.zeros_like(np.uint8(image))
 
             # detect image
-            retinaface_boxes, _, _ = call_face_crop(retinaface_detection, image, 13, prefix="tmp")
+            retinaface_boxes, _, _ = call_face_crop(retinaface_detection, image, 1.5, prefix="tmp")
             retinaface_box = retinaface_boxes[0]
 
             # sub_face for seg skin
@@ -513,17 +519,21 @@ class Face_Skin(object):
             
             torch_img           = self.trans(PIL_img)
             torch_img           = torch.unsqueeze(torch_img, 0)
-
+            if self.cuda:
+                torch_img       = torch_img.cuda()
             out                 = self.model(torch_img)[0]
             model_mask          = out.squeeze(0).cpu().numpy().argmax(0)
             
-            sub_mask = np.zeros_like(model_mask)
-            for index in needs_index:
-                sub_mask += np.uint8(model_mask == index)
+            masks = []
+            for _needs_index in needs_index:
+                total_mask = np.zeros_like(np.uint8(image))
+                sub_mask = np.zeros_like(model_mask)
+                for index in _needs_index:
+                    sub_mask += np.uint8(model_mask == index)
 
-            sub_mask = np.clip(sub_mask, 0, 1) * 255
-            sub_mask = np.tile(np.expand_dims(cv2.resize(np.uint8(sub_mask), (image_w, image_h)), -1), [1, 1, 3])
+                sub_mask = np.clip(sub_mask, 0, 1) * 255
+                sub_mask = np.tile(np.expand_dims(cv2.resize(np.uint8(sub_mask), (image_w, image_h)), -1), [1, 1, 3])
+                total_mask[retinaface_box[1]:retinaface_box[3], retinaface_box[0]:retinaface_box[2], :] = sub_mask
+                masks.append(Image.fromarray(np.uint8(total_mask)))
             
-            # detect image
-            total_mask[retinaface_box[1]:retinaface_box[3], retinaface_box[0]:retinaface_box[2], :] = sub_mask
-            return Image.fromarray(np.uint8(total_mask))
+            return masks

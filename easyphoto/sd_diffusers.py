@@ -1,20 +1,21 @@
-import os
 import copy
+import logging
+import math
+import os
 import re
 from collections import defaultdict
 
+import open_clip
 import torch
 import torch.utils.checkpoint
 from diffusers import (DPMSolverMultistepScheduler,
-                       StableDiffusionControlNetInpaintPipeline)
-from safetensors.torch import load_file
-from transformers import CLIPTextModel, CLIPTokenizer
+                       StableDiffusionControlNetInpaintPipeline,
+                       StableDiffusionXLPipeline)
+from easyphoto.easyphoto_config import preload_lora
 from easyphoto.train_kohya.utils.model_utils import \
     load_models_from_stable_diffusion_checkpoint
-from easyphoto.easyphoto_config import \
-    preload_lora
-import logging
-
+from safetensors.torch import load_file
+from transformers import CLIPTokenizer
 
 tokenizer       = None
 scheduler       = None
@@ -24,6 +25,10 @@ unet            = None
 pipeline        = None
 sd_model_checkpoint_before  = ""
 weight_dtype                = torch.float16
+SCHEDULER_LINEAR_START = 0.00085
+SCHEDULER_LINEAR_END = 0.0120
+SCHEDULER_TIMESTEPS = 1000
+SCHEDLER_SCHEDULE = "scaled_linear"
 
 def merge_lora(pipeline, lora_path, multiplier, from_safetensor=False, device='cpu', dtype=torch.float32):
     LORA_PREFIX_UNET = "lora_unet"
@@ -157,27 +162,61 @@ def unmerge_lora(pipeline, lora_path, multiplier=1, from_safetensor=False, devic
 
     return pipeline
 
-def i2i_inpaint_call(
-        images=[],  
-        mask_image=None,  
-        denoising_strength=0.75,
-        controlnet_image=[],
-        controlnet_units_list=[],
-        controlnet_conditioning_scale=[],
-        steps=20,
-        seed=-1,
+def t2i_sdxl_call(
+    steps=20,
+    seed=-1,
 
-        cfg_scale=7.0,
-        width=640,
-        height=768,
+    cfg_scale=7.0,
+    width=640,
+    height=768,
 
-        prompt="",
-        negative_prompt="",
-        sd_lora_checkpoint="",
-        sd_model_checkpoint="",
-        sd_base15_checkpoint="",
+    prompt="",
+    negative_prompt="",
+    sd_model_checkpoint="",
 ):  
-    global tokenizer, scheduler, text_encoder, vae, unet, sd_model_checkpoint_before, pipeline, preload_lora_local
+    width   = int(width // 8 * 8)
+    height  = int(height // 8 * 8)
+
+    sdxl_pipeline = StableDiffusionXLPipeline.from_single_file(sd_model_checkpoint).to("cuda", weight_dtype)
+
+    try:
+        import xformers
+        sdxl_pipeline.enable_xformers_memory_efficient_attention()
+    except:
+        logging.warning('No module named xformers. Infer without using xformers. You can run pip install xformers to install it.')
+
+    generator = torch.Generator("cuda").manual_seed(int(seed)) 
+
+    image = sdxl_pipeline(
+        prompt, negative_prompt=negative_prompt, 
+        guidance_scale=cfg_scale, num_inference_steps=steps, generator=generator, height=height, width=width
+    ).images[0]
+
+    del sdxl_pipeline
+    torch.cuda.empty_cache()
+    return image
+
+def i2i_inpaint_call(
+    images=[],  
+    mask_image=None,  
+    denoising_strength=0.75,
+    controlnet_image=[],
+    controlnet_units_list=[],
+    controlnet_conditioning_scale=[],
+    steps=20,
+    seed=-1,
+
+    cfg_scale=7.0,
+    width=640,
+    height=768,
+
+    prompt="",
+    negative_prompt="",
+    sd_lora_checkpoint=[],
+    sd_model_checkpoint="",
+    sd_base15_checkpoint="",
+):  
+    global tokenizer, scheduler, text_encoder, vae, unet, sd_model_checkpoint_before, pipeline
     width   = int(width // 8 * 8)
     height  = int(height // 8 * 8)
     
@@ -204,9 +243,10 @@ def i2i_inpaint_call(
     if preload_lora is not None:
         for _preload_lora in preload_lora:
             merge_lora(pipeline, _preload_lora, 0.60, from_safetensor=True, device="cuda", dtype=weight_dtype)
-    if sd_lora_checkpoint != "":
+    if len(sd_lora_checkpoint) != 0:
         # Bind LoRANetwork to pipeline.
-        merge_lora(pipeline, sd_lora_checkpoint, 0.90, from_safetensor=True, device="cuda", dtype=weight_dtype)
+        for _sd_lora_checkpoint in sd_lora_checkpoint:
+            merge_lora(pipeline, _sd_lora_checkpoint, 0.90, from_safetensor=True, device="cuda", dtype=weight_dtype)
 
     try:
         import xformers
@@ -223,8 +263,10 @@ def i2i_inpaint_call(
         controlnet_conditioning_scale=controlnet_conditioning_scale, guess_mode=True
     ).images[0]
 
-    if sd_lora_checkpoint != "":
-        unmerge_lora(pipeline, sd_lora_checkpoint, 0.90, from_safetensor=True, device="cuda", dtype=weight_dtype)
+    if len(sd_lora_checkpoint) != 0:
+        # Bind LoRANetwork to pipeline.
+        for _sd_lora_checkpoint in sd_lora_checkpoint:
+            unmerge_lora(pipeline, _sd_lora_checkpoint, 0.90, from_safetensor=True, device="cuda", dtype=weight_dtype)
     if preload_lora is not None:
         for _preload_lora in preload_lora:
             unmerge_lora(pipeline, _preload_lora, 0.60, from_safetensor=True, device="cuda", dtype=weight_dtype)

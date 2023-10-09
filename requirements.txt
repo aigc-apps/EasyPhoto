@@ -1,5 +1,6 @@
 onnx
 onnxruntime
+invisible-watermark
 GitPython==3.1.30
 Pillow==9.5.0
 accelerate==0.18.0
