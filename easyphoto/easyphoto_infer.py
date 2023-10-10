@@ -302,7 +302,7 @@ def easyphoto_infer_forward(
             face_id_retinaface_masks.append([])
         else:
             # get prompt
-            input_prompt            = f"{validation_prompt}" + additional_prompt
+            input_prompt            = f"{validation_prompt}, " + additional_prompt
             
             # get best image after training
             best_outputs_paths = glob.glob(os.path.join(user_id_outpath_samples, user_id, "user_weights", "best_outputs", "*.jpg"))

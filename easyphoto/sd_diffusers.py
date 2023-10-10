@@ -1,11 +1,8 @@
-import copy
 import logging
-import math
 import os
 import re
 from collections import defaultdict
 
-import open_clip
 import torch
 import torch.utils.checkpoint
 from diffusers import (DPMSolverMultistepScheduler,
@@ -177,7 +174,9 @@ def t2i_sdxl_call(
     width   = int(width // 8 * 8)
     height  = int(height // 8 * 8)
 
+    # Load scheduler, tokenizer and models.
     sdxl_pipeline = StableDiffusionXLPipeline.from_single_file(sd_model_checkpoint).to("cuda", weight_dtype)
+    sdxl_pipeline.scheduler = DPMSolverMultistepScheduler(beta_start=0.00085, beta_end=0.012)
 
     try:
         import xformers
