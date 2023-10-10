@@ -1,8 +1,7 @@
 import logging
 import os
 import time
-from glob import glob
-
+import hashlib
 import gradio as gr
 import requests
 from modelscope import snapshot_download
@@ -51,11 +50,12 @@ def urldownload_progressbar(url, filepath):
     except:
         print('Error!')
 
-def check_files_exists_and_download():
+def check_files_exists_and_download(check_hash):
     snapshot_download('bubbliiiing/controlnet_helper', cache_dir=os.path.join(models_path, "Others"), revision='v2.3')
 
     urls = [
         "https://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/ChilloutMix-ni-fp16.safetensors", 
+        "https://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/SDXL_1.0_ArienMixXL_v2.0.safetensors",
         "https://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/FilmVelvia3.safetensors",
         "https://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/face_skin.pth",
         "https://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/1.jpg",
@@ -65,6 +65,7 @@ def check_files_exists_and_download():
     ]
     filenames = [
         os.path.join(models_path, f"Stable-diffusion/Chilloutmix-Ni-pruned-fp16-fix.safetensors"),
+        os.path.join(models_path, f"Stable-diffusion/SDXL_1.0_ArienMixXL_v2.0.safetensors"),
         os.path.join(models_path, f"Lora/FilmVelvia3.safetensors"),
         os.path.join(models_path, "Others", "face_skin.pth"),
         os.path.join(models_path, "training_templates", "1.jpg"),
@@ -74,14 +75,48 @@ def check_files_exists_and_download():
     ]
     print("Start Downloading weights")
     for url, filename in zip(urls, filenames):
-        if os.path.exists(filename):
-            continue
+        if not check_hash:
+            if os.path.exists(filename):
+                continue
+        else:
+            if os.path.exists(filename) and compare_hasd_link_file(url, filename):
+                continue
         print(f"Start Downloading: {url}")
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         urldownload_progressbar(url, filename)
+       
+# Calculate the hash value of the download link and downloaded_file by sha256
+def compare_hasd_link_file(url, file_path):
+    r           = requests.head(url)
+    total_size  = int(r.headers['Content-Length'])
+    
+    res = requests.get(url, stream=True)
+    remote_head_hash = hashlib.sha256(res.raw.read(1000)).hexdigest()  
+    res.close()
+    
+    end_pos = total_size - 1000
+    headers = {'Range': f'bytes={end_pos}-{total_size-1}'}
+    res = requests.get(url, headers=headers, stream=True)
+    remote_end_hash = hashlib.sha256(res.content).hexdigest()
+    res.close()
+    
+    with open(file_path,'rb') as f:
+        local_head_data = f.read(1000)
+        local_head_hash = hashlib.sha256(local_head_data).hexdigest()
+    
+        f.seek(end_pos)
+        local_end_data = f.read(1000) 
+        local_end_hash = hashlib.sha256(local_end_data).hexdigest()
+     
+    if remote_head_hash == local_head_hash and remote_end_hash == local_end_hash:
+        print(f"{file_path} : Hash match")
+        return True
+      
+    else:
+        print(f" {file_path} : Hash mismatch")
+        return False
 
 _gradio_template_response_orig = gr.routes.templates.TemplateResponse
-
 
 def webpath(fn):
     if fn.startswith(script_path):

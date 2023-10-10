@@ -56,7 +56,11 @@ from skimage import transform
 from torchvision import transforms
 from tqdm.auto import tqdm
 from transformers import CLIPTextModel, CLIPTokenizer
+
 from utils.model_utils import load_models_from_stable_diffusion_checkpoint
+from utils.gpu_info import gpu_monitor_decorator
+
+torch.backends.cudnn.benchmark = True
 
 if is_wandb_available():
     import wandb
@@ -328,15 +332,22 @@ def eval_jpg_with_faceid(pivot_dir, test_img_dir, top_merge=10):
         try:
             image = Image.open(img)
             embedding = face_recognition(dict(user=image))[OutputKeys.IMG_EMBEDDING]
-            embedding_list.append(embedding)
+            if embedding is not None:
+                embedding_list.append(embedding)
         except Exception as e:
             print("error at:", str(e))
 
     if len(embedding_list) == 0:
+        print("Can't detect faces in processed images, return empty list")
         return [], [], []
-        
-    embedding_array = np.vstack(embedding_list)
-    
+
+    # exception cause by embedding = None
+    try:
+        embedding_array = np.vstack(embedding_list)
+    except Exception as e:
+        print(f'vstack embedding failed, caused by {str(e)}')
+        return [], [], []
+
     #  mean, get pivot
     pivot_feature   = np.mean(embedding_array, axis=0)
     pivot_feature   = np.reshape(pivot_feature, [512, 1])
@@ -805,6 +816,7 @@ def unet_attn_processors_state_dict(unet) -> Dict[str, torch.tensor]:
 
     return attn_processors_state_dict
 
+@gpu_monitor_decorator()
 def main():
     args = parse_args()
     logging_dir = Path(args.output_dir, args.logging_dir)
@@ -920,7 +932,7 @@ def main():
 
     # Enable TF32 for faster training on Ampere GPUs,
     # cf https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices
-    if args.allow_tf32:
+    if args.allow_tf32 or os.environ.get('ENABLE_TF32') :
         torch.backends.cuda.matmul.allow_tf32 = True
 
     if args.scale_lr:
@@ -939,7 +951,17 @@ def main():
 
         optimizer_class = bnb.optim.AdamW8bit
     else:
-        optimizer_class = torch.optim.AdamW
+        if os.environ.get('ENABLE_APEX_OPT'):
+            try:
+                import apex
+                optimizer_class=apex.optimizers.FusedAdam
+            except ImportError:
+                logger.warn(
+                    "To use apex FusedAdam, please install fusedAdam,https://github.com/NVIDIA/apex."
+                )
+                optimizer_class=torch.optim.AdamW
+        else:
+            optimizer_class = torch.optim.AdamW
 
     # Optimizer creation
     optimizer = optimizer_class(
@@ -1046,12 +1068,16 @@ def main():
         return {"pixel_values": pixel_values, "input_ids": input_ids}
 
     # DataLoaders creation:
+    persistent_workers = True
+    if args.dataloader_num_workers == 0:
+        persistent_workers = False
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         shuffle=True,
         collate_fn=collate_fn,
         batch_size=args.train_batch_size,
         num_workers=args.dataloader_num_workers,
+        persistent_workers=persistent_workers,
     )
 
     # Scheduler and math around the number of training steps.
