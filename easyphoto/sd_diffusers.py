@@ -1,8 +1,7 @@
 import logging
 import os
 import re
-from collections import defaultdict
-
+from collections import defaultdict    
 import torch
 import torch.utils.checkpoint
 from diffusers import (DPMSolverMultistepScheduler,
@@ -20,6 +19,7 @@ text_encoder    = None
 vae             = None
 unet            = None
 pipeline        = None
+oneflow_unet = None
 sd_model_checkpoint_before  = ""
 weight_dtype                = torch.float16
 SCHEDULER_LINEAR_START = 0.00085
@@ -215,7 +215,7 @@ def i2i_inpaint_call(
     sd_model_checkpoint="",
     sd_base15_checkpoint="",
 ):  
-    global tokenizer, scheduler, text_encoder, vae, unet, sd_model_checkpoint_before, pipeline
+    global tokenizer, scheduler, text_encoder, vae, unet, sd_model_checkpoint_before, pipeline, oneflow_unet
     width   = int(width // 8 * 8)
     height  = int(height // 8 * 8)
     
@@ -229,6 +229,7 @@ def i2i_inpaint_call(
         sd_base15_checkpoint, subfolder="tokenizer"
     )
 
+    
     pipeline = StableDiffusionControlNetInpaintPipeline(
         controlnet=controlnet_units_list, 
         unet=unet.to(weight_dtype),
@@ -239,6 +240,7 @@ def i2i_inpaint_call(
         safety_checker=None,
         feature_extractor=None,
     ).to("cuda")
+
     if preload_lora is not None:
         for _preload_lora in preload_lora:
             merge_lora(pipeline, _preload_lora, 0.60, from_safetensor=True, device="cuda", dtype=weight_dtype)
@@ -252,7 +254,17 @@ def i2i_inpaint_call(
         pipeline.enable_xformers_memory_efficient_attention()
     except:
         logging.warning('No module named xformers. Infer without using xformers. You can run pip install xformers to install it.')
-        
+
+    if os.environ.get('use_oneflow') and oneflow_unet is None:
+        print("unet compile begin")
+        from onediff.infer_compiler import oneflow_compile
+        oneflow_unet = oneflow_compile(pipeline.unet)
+        print("unet compile compelete")
+
+    if oneflow_unet:
+        print("use oneflow to infer")
+        pipeline.unet = oneflow_unet
+
     generator           = torch.Generator("cuda").manual_seed(int(seed)) 
     pipeline.safety_checker = None
 
@@ -261,6 +273,9 @@ def i2i_inpaint_call(
         guidance_scale=cfg_scale, num_inference_steps=steps, generator=generator, height=height, width=width, \
         controlnet_conditioning_scale=controlnet_conditioning_scale, guess_mode=True
     ).images[0]
+    
+    if oneflow_unet:
+        pipeline.unet = unet
 
     if len(sd_lora_checkpoint) != 0:
         # Bind LoRANetwork to pipeline.
@@ -269,4 +284,5 @@ def i2i_inpaint_call(
     if preload_lora is not None:
         for _preload_lora in preload_lora:
             unmerge_lora(pipeline, _preload_lora, 0.60, from_safetensor=True, device="cuda", dtype=weight_dtype)
+
     return image

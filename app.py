@@ -1,5 +1,18 @@
 import time
 import argparse
+import logging
+import os
+try:
+    # becase the onediff has warning,so we import oneflow to judge
+    import oneflow
+    os.environ['use_oneflow'] = '1'
+except:
+    logging.warning('No module named oneflow. Infer without using oneflow. You can read https://github.com/Oneflow-Inc/diffusers.')
+
+# it must be imported before diffusers
+if os.environ.get('use_oneflow'):
+    from onediff.infer_compiler import oneflow_compile
+
 from easyphoto.easyphoto_ui import on_ui_tabs
 from easyphoto.easyphoto_utils import reload_javascript
 from easyphoto.api import easyphoto_infer_forward_api, easyphoto_train_forward_api

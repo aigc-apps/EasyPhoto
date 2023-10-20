@@ -1,8 +1,9 @@
 import copy
 import glob
 import logging
-import os
 
+import os
+import time
 import cv2
 import numpy as np
 import torch
@@ -209,6 +210,7 @@ def easyphoto_infer_forward(
     seed, crop_face_preprocess, apply_face_fusion_before, apply_face_fusion_after, color_shift_middle, color_shift_last, super_resolution, display_score, \
     background_restore, background_restore_denoising_strength, sd_xl_input_prompt, sd_xl_resolution, tabs, *user_ids,
 ):
+    s1 = time.time()
     # global
     global retinaface_detection, image_face_fusion, skin_retouching, portrait_enhancement, face_skin, face_recognition, check_hash
 
@@ -252,7 +254,11 @@ def easyphoto_infer_forward(
     if retinaface_detection is None:
         retinaface_detection    = pipeline(Tasks.face_detection, 'damo/cv_resnet50_face-detection_retinaface', model_revision='v2.0.2')
     if image_face_fusion is None:
-        image_face_fusion       = pipeline(Tasks.image_face_fusion, model='damo/cv_unet-image-face-fusion_damo', model_revision='v1.3')
+        # oneflow cannot use tensorflow,use torch model
+        if os.environ.get('use_oneflow'):
+            image_face_fusion       = pipeline('face_fusion_torch', model='damo/cv_unet_face_fusion_torch', model_revision='v1.0.3')
+        else:
+            image_face_fusion       = pipeline(Tasks.image_face_fusion, model='damo/cv_unet-image-face-fusion_damo', model_revision='v1.3')
     if face_skin is None:
         face_skin               = Face_Skin(os.path.join(models_path, "Others", "face_skin.pth"))
     if skin_retouching is None:
@@ -454,6 +460,7 @@ def easyphoto_infer_forward(
                     input_image = input_image.resize([new_width, new_height], Image.Resampling.LANCZOS)
                 
                 # Detect the box where the face of the template image is located and obtain its corresponding small mask
+                tmp=time.time()
                 logging.info("Start face detect.")
                 input_image_retinaface_boxes, input_image_retinaface_keypoints, input_masks = call_face_crop(retinaface_detection, input_image, 1.05, "template")
                 input_image_retinaface_box      = input_image_retinaface_boxes[0]
@@ -499,15 +506,19 @@ def easyphoto_infer_forward(
                 
                 # here we get the retinaface_box, we should use this Input box and face pixel to refine the output face pixel colors
                 template_image_original_face_area = np.array(original_input_template)[input_image_retinaface_box[1]:input_image_retinaface_box[3], input_image_retinaface_box[0]:input_image_retinaface_box[2], :] 
-                
+                print("End face detect. ",time.time()-tmp)
+
                 # First diffusion, facial reconstruction
                 logging.info("Start First diffusion.")
+                tmp=time.time()
                 controlnet_pairs = [["canny", input_image, 0.50], ["openpose", replaced_input_image, 0.50], ["color", input_image, 0.85]]
                 first_diffusion_output_image = inpaint(input_image, input_mask, controlnet_pairs, diffusion_steps=first_diffusion_steps, denoising_strength=first_denoising_strength, input_prompt=input_prompts[index], hr_scale=1.0, seed=str(seed), sd_model_checkpoint=sd_model_checkpoint, sd_lora_checkpoint=sd_lora_checkpoints[index])
 
+                print("End First diffusion.",time.time() -tmp)
                 if color_shift_middle:
                     # apply color shift
                     logging.info("Start color shift middle.")
+                    tmp=time.time()
                     first_diffusion_output_image_uint8 = np.uint8(np.array(first_diffusion_output_image))
                     # crop image first
                     first_diffusion_output_image_crop = Image.fromarray(first_diffusion_output_image_uint8[input_image_retinaface_box[1]:input_image_retinaface_box[3], input_image_retinaface_box[0]:input_image_retinaface_box[2],:])
@@ -522,10 +533,12 @@ def easyphoto_infer_forward(
                     first_diffusion_output_image_uint8[input_image_retinaface_box[1]:input_image_retinaface_box[3], input_image_retinaface_box[0]:input_image_retinaface_box[2],:] = \
                         first_diffusion_output_image_crop_color_shift * face_skin_mask + np.array(first_diffusion_output_image_crop) * (1 - face_skin_mask)
                     first_diffusion_output_image = Image.fromarray(np.uint8(first_diffusion_output_image_uint8))
+                    print("End color shift middle. ",time.time() -tmp)
 
                 # Second diffusion
                 if roop_images[index] is not None and apply_face_fusion_after:
                     # Fusion of facial photos with user photos
+                    tmp=time.time()
                     logging.info("Start second face fusion.")
                     fusion_image = image_face_fusion(dict(template=first_diffusion_output_image, user=roop_images[index]))[OutputKeys.OUTPUT_IMG] # swap_face(target_img=output_image, source_img=roop_image, model="inswapper_128.onnx", upscale_options=UpscaleOptions())
                     fusion_image = Image.fromarray(cv2.cvtColor(fusion_image, cv2.COLOR_BGR2RGB))
@@ -545,8 +558,11 @@ def easyphoto_infer_forward(
                     fusion_image = first_diffusion_output_image
                     input_image = first_diffusion_output_image
 
+                print("End Second face fusion.. ",time.time() -tmp)
+
                 # Add mouth_mask to avoid some fault lips, close if you dont need
                 if need_mouth_fix:
+                    tmp=time.time()
                     logging.info("Start mouth detect.")
                     mouth_mask, face_mask = face_skin(input_image, retinaface_detection, [[4, 5, 12, 13], [1, 2, 3, 4, 5, 10, 12, 13]])
                     # Obtain the mask of the area around the face
@@ -557,14 +573,18 @@ def easyphoto_infer_forward(
                     if i_h != m_h or i_w != m_w:
                         face_mask = face_mask.resize([m_w, m_h])
                     input_mask = Image.fromarray(np.uint8(np.clip(np.float32(face_mask) + np.float32(mouth_mask), 0, 255)))
-                
+                    print("End mouth detect. ",time.time() -tmp)
+
                 logging.info("Start Second diffusion.")
+                tmp=time.time()
                 controlnet_pairs = [["canny", fusion_image, 1.00], ["tile", fusion_image, 1.00]]
                 second_diffusion_output_image = inpaint(input_image, input_mask, controlnet_pairs, input_prompts[index], diffusion_steps=second_diffusion_steps, denoising_strength=second_denoising_strength, hr_scale=default_hr_scale, seed=str(seed), sd_model_checkpoint=sd_model_checkpoint, sd_lora_checkpoint=sd_lora_checkpoints[index])
+                print("End Second diffusion.. ",time.time() -tmp)
 
                 # use original template face area to shift generated face color at last
                 if color_shift_last:
                     logging.info("Start color shift last.")
+                    tmp=time.time()
                     # scale box
                     rescale_retinaface_box = [int(i * default_hr_scale) for i in input_image_retinaface_box]
                     second_diffusion_output_image_uint8 = np.uint8(np.array(second_diffusion_output_image))
@@ -580,10 +600,12 @@ def easyphoto_infer_forward(
                     second_diffusion_output_image_uint8[rescale_retinaface_box[1]:rescale_retinaface_box[3], rescale_retinaface_box[0]:rescale_retinaface_box[2],:] = \
                         second_diffusion_output_image_crop_color_shift * face_skin_mask + np.array(second_diffusion_output_image_crop) * (1 - face_skin_mask)
                     second_diffusion_output_image = Image.fromarray(second_diffusion_output_image_uint8)
+                    print("End color shift last. ",time.time() -tmp)
                     
                 # If it is a large template for cutting, paste the reconstructed image back
                 if crop_face_preprocess:
                     logging.info("Start paste crop image to origin template.")
+                    tmp=time.time()
                     origin_loop_template_image      = np.array(copy.deepcopy(loop_template_image))
 
                     x1,y1,x2,y2                     = loop_template_crop_safe_box
@@ -591,6 +613,7 @@ def easyphoto_infer_forward(
                     origin_loop_template_image[y1:y2,x1:x2] = np.array(second_diffusion_output_image) 
 
                     loop_output_image               = Image.fromarray(np.uint8(origin_loop_template_image))
+                    print("End paste crop image to origin template.",time.time() -tmp)
                 else:
                     loop_output_image               = second_diffusion_output_image
                 
@@ -618,6 +641,7 @@ def easyphoto_infer_forward(
 
             try:
                 if min(len(template_face_safe_boxes), len(user_ids) - len(passed_userid_list)) > 1 or background_restore:
+                    tmp=time.time()
                     logging.info("Start Thirt diffusion for background.")
                     output_image    = Image.fromarray(np.uint8(output_image))
                     short_side      = min(output_image.width, output_image.height)
@@ -632,6 +656,7 @@ def easyphoto_infer_forward(
                     denoising_strength  = background_restore_denoising_strength if background_restore else 0.3
                     controlnet_pairs    = [["canny", output_image, 1.00], ["color", output_image, 1.00]]
                     output_image    = inpaint(output_image, output_mask, controlnet_pairs, input_prompt_without_lora, 30, denoising_strength=denoising_strength, hr_scale=1, seed=str(seed), sd_model_checkpoint=sd_model_checkpoint)
+                    print("End Third diffusion.. ",time.time() -tmp)
             except Exception as e:
                 torch.cuda.empty_cache()
                 logging.error(f"Background Restore Failed, Please check the ratio of height and width in template. Error Info: {e}")
@@ -640,17 +665,21 @@ def easyphoto_infer_forward(
             try:
                 logging.info("Start Skin Retouching.")
                 # Skin Retouching is performed here. 
+                tmp=time.time()
                 output_image = Image.fromarray(cv2.cvtColor(skin_retouching(output_image)[OutputKeys.OUTPUT_IMG], cv2.COLOR_BGR2RGB))
+                print("End Skin Retouching.",time.time() -tmp)
             except Exception as e:
                 torch.cuda.empty_cache()
                 logging.error(f"Skin Retouching error: {e}")
 
             try:
                 logging.info("Start Portrait enhancement.")
+                tmp=time.time()
                 h, w, c = np.shape(np.array(output_image))
                 # Super-resolution is performed here. 
                 if super_resolution:
                     output_image = Image.fromarray(cv2.cvtColor(portrait_enhancement(output_image)[OutputKeys.OUTPUT_IMG], cv2.COLOR_BGR2RGB))
+                print("End Portrait enhancement.",time.time() -tmp)
             except Exception as e:
                 torch.cuda.empty_cache()
                 logging.error(f"Portrait enhancement error: {e}")
@@ -666,11 +695,13 @@ def easyphoto_infer_forward(
             loop_message += f"Template {str(template_idx + 1)} Success."
         except Exception as e:
             torch.cuda.empty_cache()
-            logging.error(f"Template {str(template_idx + 1)} error: Error info is {e}, skip it.")
+            logging.exception(f"Template {str(template_idx + 1)} error: Error info is {e}, skip it.")
 
             if loop_message != "":
                 loop_message += "\n"
             loop_message += f"Template {str(template_idx + 1)} error: Error info is {e}."
 
     torch.cuda.empty_cache()
+    t = time.time()-s1
+    print("all processor time:",t)
     return "Success", outputs, face_id_outputs  
