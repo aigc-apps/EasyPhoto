@@ -117,7 +117,7 @@ docker pull registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-
 git clone https://github.com/aigc-apps/EasyPhoto.git
 
 # enter image
-docker run -it --network host -v $(pwd):/paiya_acc --gpus all registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
+docker run -it --network host -v $(pwd):/paiya_acc --gpus all registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117-oneflow
 
 cd /paiya_acc/EasyPhoto
 # launch
