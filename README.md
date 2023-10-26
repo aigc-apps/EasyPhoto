@@ -84,16 +84,42 @@ pip install -r requirements.txt
 # launch tool
 python app.py
 ```
+##### Advanced（Optional)
+use oneflow to accelerate infer,we give the cu117 install,you can replace to cpu. oneflow may has some import warning,just skip it
+```
+# torch model to replace tensorflow model,need install mmcv
+    # https://mmdetection.readthedocs.io/en/v2.9.0/faq.html
+    # https://github.com/open-mmlab/mmdetection/issues/6765
+
+MMCV_WITH_OPS=1 FORCE_CUDA=1 MMCV_CUDA_ARGS='-gencode=arch=compute_80,code=sm_80' pip install mmcv-full==1.7.0 --index https://pypi.tuna.tsinghua.edu.cn/simple
+pip install mmdet==2.28.2 --index https://pypi.tuna.tsinghua.edu.cn/simple
+
+# oneflow release has bug,we use 2023.10.20 version
+# https://github.com/Oneflow-Inc/diffusers
+
+pip uninstall tensorflow tensorflow-cpu xformers accelerate -y
+pip install --pre oneflow -f https://oneflow-staging.oss-cn-beijing.aliyuncs.com/branch/master/cu117 --index https://pypi.tuna.tsinghua.edu.cn/simple
+pip install "transformers==4.27.1" "diffusers[torch]==0.19.3" --index https://pypi.tuna.tsinghua.edu.cn/simple
+
+# onediff release has bug,we use 2023.10.20 version
+wget -P /root/.cache http://pai-aigc-photog.oss-cn-hangzhou.aliyuncs.com/webui/onediff.zip
+unzip /root/.cache/onediff.zip -d /root/.cache
+cd /root/.cache/onediff && python3 -m pip install -e .
+
+```
 
 ### 2. Build from Docker
 
 ```
 # pull image
-docker pull registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
+docker pull registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117-oneflow
+
+git clone https://github.com/aigc-apps/EasyPhoto.git
 
 # enter image
-docker run -it --network host --gpus all registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117
+docker run -it --network host -v $(pwd):/paiya_acc --gpus all registry.cn-shanghai.aliyuncs.com/pai-ai-test/eas-service:easyphoto-diffusers-py310-torch201-cu117-oneflow
 
+cd /paiya_acc/EasyPhoto
 # launch
 python app.py
 ```
