@@ -51,7 +51,6 @@ def merge_lora(pipeline, lora_path, multiplier, from_safetensor=False, device='c
         updates[layer][elem] = value
 
     for layer, elems in updates.items():
-
         if "text" in layer:
             layer_infos = layer.split(LORA_PREFIX_TEXT_ENCODER + "_")[-1].split("_")
             curr_layer = pipeline.text_encoder
@@ -83,6 +82,7 @@ def merge_lora(pipeline, lora_path, multiplier, from_safetensor=False, device='c
             alpha = 1.0
 
         curr_layer.weight.data = curr_layer.weight.data.to(device)
+        
         if len(weight_up.shape) == 4:
             curr_layer.weight.data += multiplier * alpha * torch.mm(weight_up.squeeze(3).squeeze(2),
                                                                     weight_down.squeeze(3).squeeze(2)).unsqueeze(
@@ -119,7 +119,6 @@ def unmerge_lora(pipeline, lora_path, multiplier=1, from_safetensor=False, devic
         updates[layer][elem] = value
 
     for layer, elems in updates.items():
-
         if "text" in layer:
             layer_infos = layer.split(LORA_PREFIX_TEXT_ENCODER + "_")[-1].split("_")
             curr_layer = pipeline.text_encoder
@@ -156,7 +155,6 @@ def unmerge_lora(pipeline, lora_path, multiplier=1, from_safetensor=False, devic
                                                                     weight_down.squeeze(3).squeeze(2)).unsqueeze(2).unsqueeze(3)
         else:
             curr_layer.weight.data -= multiplier * alpha * torch.mm(weight_up, weight_down)
-
     return pipeline
 
 def t2i_sdxl_call(
@@ -241,6 +239,14 @@ def i2i_inpaint_call(
         feature_extractor=None,
     ).to("cuda")
 
+    pipeline.unet.to(memory_format=torch.channels_last)  
+
+    if  os.environ.get('use_oneflow') and oneflow_unet is None:
+        print("unet compile begin")
+        from onediff.infer_compiler import oneflow_compile
+        oneflow_unet = oneflow_compile(pipeline.unet)
+        print("unet compile compelete")
+
     if preload_lora is not None:
         for _preload_lora in preload_lora:
             merge_lora(pipeline, _preload_lora, 0.60, from_safetensor=True, device="cuda", dtype=weight_dtype)
@@ -248,18 +254,12 @@ def i2i_inpaint_call(
         # Bind LoRANetwork to pipeline.
         for _sd_lora_checkpoint in sd_lora_checkpoint:
             merge_lora(pipeline, _sd_lora_checkpoint, 0.90, from_safetensor=True, device="cuda", dtype=weight_dtype)
-
     try:
         import xformers
         pipeline.enable_xformers_memory_efficient_attention()
     except:
         logging.warning('No module named xformers. Infer without using xformers. You can run pip install xformers to install it.')
 
-    if os.environ.get('use_oneflow') and oneflow_unet is None:
-        print("unet compile begin")
-        from onediff.infer_compiler import oneflow_compile
-        oneflow_unet = oneflow_compile(pipeline.unet)
-        print("unet compile compelete")
 
     if oneflow_unet:
         print("use oneflow to infer")
