@@ -107,7 +107,7 @@ def easyphoto_infer_forward_api(_: gr.Blocks, app: FastAPI):
         super_resolution            = datas.get("super_resolution", True)
         display_score               = datas.get("display_score", False)
         background_restore          = datas.get("background_restore", False)
-        background_restore_denoising_strength = datas.get("background_restore", 0.35)
+        background_restore_denoising_strength = datas.get("background_restore_denoising_strength", 0.35)
         sd_xl_input_prompt          = datas.get("sd_xl_input_prompt", "upper-body, look at viewer, one twenty years old girl, wear white shit, standing, in the garden, daytime, f32")
         sd_xl_resolution            = datas.get("sd_xl_resolution", "(1024, 1024)")
         tabs                        = datas.get("tabs", 1)
